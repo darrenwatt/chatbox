@@ -149,12 +149,12 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	rooms[roomID] = append(rooms[roomID], conn)
 
 	// Handle incoming messages and broadcast to other users in the room
-	go handleMessage(conn, roomID)
+	go handleMessage(conn, roomID, userID)
 
 	// do this all the time to keep listening and posting ...
 	for {
 		// Read message from the WebSocket connection
-		_, message, err := conn.ReadMessage()
+		messageType, message, err := conn.ReadMessage()
 		if err != nil {
 			// Handle read error (e.g., user disconnected)
 			log.Printf("Error reading message: %v", err)
@@ -164,7 +164,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Received message from user %s: %s", userID, message)
 
 		// Broadcast message to other users in the same room
-		broadcastMessage(conn, roomID, message)
+		broadcastMessage(conn, roomID, userID, messageType, message)
 	}
 }
 
@@ -199,33 +199,39 @@ func generateRoomID() string {
 	return id
 }
 
-// handleMessage handles incoming messages from a WebSocket connection.
-func handleMessage(conn *websocket.Conn, roomID string) {
+// handle messages
+func handleMessage(conn *websocket.Conn, roomID, userID string) {
 	defer func() {
-		// Recover from panic caused by writing to a closed connection
-		if r := recover(); r != nil {
-			log.Printf("Recovering from panic: %v", r)
+		// Remove the connection from the room when the function exits
+		roomIDLock.Lock()
+		defer roomIDLock.Unlock()
+		connections := rooms[roomID]
+		for i, c := range connections {
+			if c == conn {
+				rooms[roomID] = append(connections[:i], connections[i+1:]...)
+				break
+			}
 		}
 	}()
 
 	for {
 		// Read message from the client
-		_, message, err := conn.ReadMessage()
+		messageType, message, err := conn.ReadMessage()
 		if err != nil {
+			// Handle error (e.g., user disconnected)
 			log.Printf("Error reading message: %v", err)
-			// Handle read error (e.g., user disconnected)
 			break
 		}
 
-		log.Printf("Received message from client %s: %s", conn.RemoteAddr(), message)
+		log.Printf("Received message from user %s: %s", userID, message)
 
-		// Broadcast message to other users in the same room
-		broadcastMessage(conn, roomID, message)
+		// Broadcast message to other users in the same room, including sender's user ID
+		broadcastMessage(conn, roomID, userID, messageType, message)
 	}
 }
 
-// broadcastMessage broadcasts a message to other users in the same room.
-func broadcastMessage(sender *websocket.Conn, roomID string, message []byte) {
+// broadcastMessage broadcasts a message to other users in the same room, including the sender's user ID.
+func broadcastMessage(sender *websocket.Conn, roomID, userID string, messageType int, message []byte) {
 	roomIDLock.Lock()
 	defer roomIDLock.Unlock()
 
@@ -234,21 +240,18 @@ func broadcastMessage(sender *websocket.Conn, roomID string, message []byte) {
 
 	// Iterate through each connection in the room
 	for _, conn := range connections {
-		// Skip the sender
-		if conn != sender {
-			// Write the message to the connection
-			err := conn.WriteMessage(websocket.TextMessage, message)
-			if err != nil {
-				// Handle error (e.g., user disconnected)
-				log.Printf("Error broadcasting message to %s: %v", conn.RemoteAddr(), err)
-			}
-		} else {
-			err := conn.WriteMessage(websocket.TextMessage, message)
-			if err != nil {
-				// Handle error (e.g., user disconnected)
-				log.Printf("Error broadcasting message to %s: %v", conn.RemoteAddr(), err)
-			}
+		// Skip the sender - actually don't skip this
+		//if conn != sender {
+		// Construct the message with the user ID prefix
+		prefixedMessage := []byte(userID + ": " + string(message))
+
+		// Write the message to the connection
+		err := conn.WriteMessage(messageType, prefixedMessage)
+		if err != nil {
+			// Handle error (e.g., user disconnected)
+			log.Printf("Error broadcasting message to %s: %v", conn.RemoteAddr(), err)
 		}
+		//}
 	}
 }
 
