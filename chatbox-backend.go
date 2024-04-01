@@ -132,7 +132,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Add the user to an available chat room
 	roomID := findAvailableRoom()
-	log.Printf("Found chatroom id: %v", roomID)
+	log.Printf("Found chatroom id: %v, user %s", roomID, userID)
 
 	// Check if the room is full
 	if len(rooms[roomID]) >= 2 {
