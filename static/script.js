@@ -2,6 +2,10 @@
 const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws"; // Determine WebSocket protocol based on HTTP/HTTPS
 const ws = new WebSocket(`${wsProtocol}://${window.location.host}/ws`);
 
+// Get the input field and button
+const input = document.getElementById("messageInput");
+const sendButton = document.getElementById("sendButton");
+
 
 ws.onopen = function(event) {
     console.log("WebSocket connection established.");
@@ -41,3 +45,16 @@ document.getElementById("connectButton").addEventListener("click", function() {
         // You can add any additional logic here, such as enabling/disabling UI elements
     };
 });
+
+// Add event listener to input field for "keypress" event
+input.addEventListener("keypress", function(event) {
+    // Check if the pressed key is Enter (key code 13)
+    if (event.keyCode === 13) {
+        // Prevent the default action (form submission)
+        event.preventDefault();
+        // Call the sendMessage function
+        sendMessage();
+    }
+});
+
+sendButton.addEventListener("click", sendMessage);
