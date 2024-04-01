@@ -1,13 +1,14 @@
 package main
 
 import (
-	"github.com/gorilla/websocket"
 	"html/template"
 	"log"
 	"math/rand"
 	"net/http"
 	"strconv"
 	"sync"
+
+	"github.com/gorilla/websocket"
 )
 
 // variables
@@ -44,6 +45,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+/*
 // websocket handler
 func wsHandler(w http.ResponseWriter, r *http.Request) {
 	// Upgrade HTTP connection to WebSocket connection
@@ -58,7 +60,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	defer func(conn *websocket.Conn) {
 		err := conn.Close()
 		if err != nil {
-			// do some error handling or something
+			log.Printf("Error closing connection: %v", err)
 			return
 		}
 	}(conn)
@@ -74,6 +76,71 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		// Room is full, inform the user or redirect to a different page
 		err := conn.WriteMessage(websocket.TextMessage, []byte("Room is full. Try again later."))
 		if err != nil {
+			log.Printf("Error writing message: %v", err)
+			return
+		}
+		return
+	}
+
+	rooms[roomID] = append(rooms[roomID], conn)
+
+	// Handle incoming messages from the client
+	go handleMessage(conn, roomID)
+
+	// Keep the connection open and handle messages
+	for {
+		// Read message from the WebSocket connection
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			// Handle read error (e.g., user disconnected)
+			log.Printf("Error reading message: %v", err)
+			break
+		}
+
+		log.Printf("Received message from client %s: %s", conn.RemoteAddr(), message)
+
+		// Broadcast message to other users in the same room
+		broadcastMessage(conn, roomID, message)
+	}
+}
+*/
+
+// websocket handler
+func wsHandler(w http.ResponseWriter, r *http.Request) {
+	// Upgrade HTTP connection to WebSocket connection
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("Error upgrading to WebSocket: %v", err)
+		http.Error(w, "Could not upgrade to WebSocket", http.StatusBadRequest)
+		return
+	}
+
+	// Generate a random ID for the user
+	userID := strconv.Itoa(rand.Intn(1000000)) // Change this to generate a unique ID as needed
+
+	// Close the connection when done
+	defer func(conn *websocket.Conn) {
+		err := conn.Close()
+		if err != nil {
+			// Handle error (e.g., logging)
+			log.Printf("Error closing connection: %v", err)
+			return
+		}
+	}(conn)
+
+	log.Printf("WebSocket connection established for user %s", userID)
+
+	// Add the user to an available chat room
+	roomID := findAvailableRoom()
+	log.Printf("Found chatroom id: %v", roomID)
+
+	// Check if the room is full
+	if len(rooms[roomID]) >= 2 {
+		// Room is full, inform the user or redirect to a different page
+		err := conn.WriteMessage(websocket.TextMessage, []byte("Room is full. Try again later."))
+		if err != nil {
+			// Handle error (e.g., logging)
+			log.Printf("Error writing message: %v", err)
 			return
 		}
 		return
@@ -82,34 +149,23 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	rooms[roomID] = append(rooms[roomID], conn)
 
 	// Handle incoming messages and broadcast to other users in the room
-	// Example: handleMessage(conn, roomID)}
 	go handleMessage(conn, roomID)
 
 	// do this all the time to keep listening and posting ...
 	for {
 		// Read message from the WebSocket connection
-		messageType, message, err := conn.ReadMessage()
+		_, message, err := conn.ReadMessage()
 		if err != nil {
+			// Handle read error (e.g., user disconnected)
 			log.Printf("Error reading message: %v", err)
 			break
 		}
 
-		log.Printf("Received message: %s", message)
-		// DW - don't think I need this
-		//log.Printf("Received messageType: %d", messageType)
+		log.Printf("Received message from user %s: %s", userID, message)
 
-		// Handle the received message (e.g., broadcast to other clients)
-		// You can add your custom message handling logic here
-
-		// Example: Broadcast message to all connected clients
-		err = conn.WriteMessage(messageType, message)
-		if err != nil {
-			log.Printf("Error writing message: %v", err)
-			break
-		}
-
+		// Broadcast message to other users in the same room
+		broadcastMessage(conn, roomID, message)
 	}
-
 }
 
 // find chatroom
@@ -143,23 +199,54 @@ func generateRoomID() string {
 	return id
 }
 
-// handle messages
+// handleMessage handles incoming messages from a WebSocket connection.
 func handleMessage(conn *websocket.Conn, roomID string) {
+	defer func() {
+		// Recover from panic caused by writing to a closed connection
+		if r := recover(); r != nil {
+			log.Printf("Recovering from panic: %v", r)
+		}
+	}()
+
 	for {
 		// Read message from the client
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			// Handle error (e.g., user disconnected)
+			log.Printf("Error reading message: %v", err)
+			// Handle read error (e.g., user disconnected)
 			break
 		}
 
+		log.Printf("Received message from client %s: %s", conn.RemoteAddr(), message)
+
 		// Broadcast message to other users in the same room
-		for _, c := range rooms[roomID] {
-			if c != conn {
-				err := c.WriteMessage(websocket.TextMessage, message)
-				if err != nil {
-					// Handle error (e.g., user disconnected)
-				}
+		broadcastMessage(conn, roomID, message)
+	}
+}
+
+// broadcastMessage broadcasts a message to other users in the same room.
+func broadcastMessage(sender *websocket.Conn, roomID string, message []byte) {
+	roomIDLock.Lock()
+	defer roomIDLock.Unlock()
+
+	// Retrieve the list of connections in the room
+	connections := rooms[roomID]
+
+	// Iterate through each connection in the room
+	for _, conn := range connections {
+		// Skip the sender
+		if conn != sender {
+			// Write the message to the connection
+			err := conn.WriteMessage(websocket.TextMessage, message)
+			if err != nil {
+				// Handle error (e.g., user disconnected)
+				log.Printf("Error broadcasting message to %s: %v", conn.RemoteAddr(), err)
+			}
+		} else {
+			err := conn.WriteMessage(websocket.TextMessage, message)
+			if err != nil {
+				// Handle error (e.g., user disconnected)
+				log.Printf("Error broadcasting message to %s: %v", conn.RemoteAddr(), err)
 			}
 		}
 	}
