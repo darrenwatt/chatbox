@@ -45,66 +45,6 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-/*
-// websocket handler
-func wsHandler(w http.ResponseWriter, r *http.Request) {
-	// Upgrade HTTP connection to WebSocket connection
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Printf("Error upgrading to WebSocket: %v", err)
-		http.Error(w, "Could not upgrade to WebSocket", http.StatusBadRequest)
-		return
-	}
-
-	// Close the connection when done
-	defer func(conn *websocket.Conn) {
-		err := conn.Close()
-		if err != nil {
-			log.Printf("Error closing connection: %v", err)
-			return
-		}
-	}(conn)
-
-	log.Println("WebSocket connection established")
-
-	// Add the user to an available chat room
-	roomID := findAvailableRoom()
-	log.Printf("Found chatroom id: %v", roomID)
-
-	// Check if the room is full
-	if len(rooms[roomID]) >= 2 {
-		// Room is full, inform the user or redirect to a different page
-		err := conn.WriteMessage(websocket.TextMessage, []byte("Room is full. Try again later."))
-		if err != nil {
-			log.Printf("Error writing message: %v", err)
-			return
-		}
-		return
-	}
-
-	rooms[roomID] = append(rooms[roomID], conn)
-
-	// Handle incoming messages from the client
-	go handleMessage(conn, roomID)
-
-	// Keep the connection open and handle messages
-	for {
-		// Read message from the WebSocket connection
-		_, message, err := conn.ReadMessage()
-		if err != nil {
-			// Handle read error (e.g., user disconnected)
-			log.Printf("Error reading message: %v", err)
-			break
-		}
-
-		log.Printf("Received message from client %s: %s", conn.RemoteAddr(), message)
-
-		// Broadcast message to other users in the same room
-		broadcastMessage(conn, roomID, message)
-	}
-}
-*/
-
 // websocket handler
 func wsHandler(w http.ResponseWriter, r *http.Request) {
 	// Upgrade HTTP connection to WebSocket connection
@@ -256,6 +196,8 @@ func broadcastMessage(sender *websocket.Conn, roomID, userID string, messageType
 }
 
 func main() {
+	log.Printf("Application started")
+
 	// Define routes and corresponding handlers
 	http.HandleFunc("/", indexHandler)
 

@@ -11,6 +11,9 @@ function wsHandler() {
 
     ws.onopen = function(event) {
         console.log("WebSocket connection established.");
+        const connectButton = document.getElementById("connectButton");
+        connectButton.innerText = "Disconnect"; // Change the text here
+        connectButton.onclick = disconnectFromChatRoom;
         // You can add any additional logic here, such as enabling/disabling UI elements
     };
 
@@ -19,6 +22,15 @@ function wsHandler() {
         // const message = JSON.parse(event.data);
         const message = event.data;
         displayMessage(message);
+    };
+
+    // WebSocket onclose event handler
+    ws.onclose = function(event) {
+        console.log("WebSocket connection closed:", event);
+        // Revert button text and functionality if the connection is closed
+        const connectButton = document.getElementById("connectButton");
+        connectButton.innerText = "Connect to Chat Room"; // Change the text here
+        connectButton.onclick = wsHandler;
     };
 
     function sendMessage() {
@@ -36,8 +48,11 @@ function wsHandler() {
         chatMessages.appendChild(messageElement);
     }
 
-
-
+    function disconnectFromChatRoom() {
+        console.log("Closing websocket connection now.")
+        // closing websocket connection with 'normal' close code
+        ws.close(1000)
+    }
 
     document.getElementById("sendButton").addEventListener("click", sendMessage);
 
@@ -60,5 +75,5 @@ function wsHandler() {
     document.getElementById("connectButton").addEventListener("click", function() {
         console.log("Attempting to connect to WebSocket server...");
         wsHandler();
-    });
+    }, { once: true });
 
