@@ -136,6 +136,7 @@ func generateRoomID() string {
 		}
 		id = strconv.Itoa(rand.Intn(1000000))
 	}
+	log.Printf("Generated new room, id: %s", id)
 	return id
 }
 
