@@ -96,12 +96,15 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		// Read message from the WebSocket connection
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
-			// Handle read error (e.g., user disconnected)
 			log.Printf("Error reading message: %v", err)
 			break
 		}
 
-		log.Printf("Received message from user %s: %s", userID, message)
+		if len(message) == 0 {
+			log.Printf("Received an empty message from user %s", userID)
+		} else {
+			log.Printf("Received message from user %s: %s", userID, message)
+		}
 
 		// Broadcast message to other users in the same room
 		broadcastMessage(conn, roomID, userID, messageType, message)
@@ -181,8 +184,6 @@ func broadcastMessage(sender *websocket.Conn, roomID, userID string, messageType
 
 	// Iterate through each connection in the room
 	for _, conn := range connections {
-		// Skip the sender - actually don't skip this
-		//if conn != sender {
 		// Construct the message with the user ID prefix
 		prefixedMessage := []byte(userID + ": " + string(message))
 
@@ -191,8 +192,8 @@ func broadcastMessage(sender *websocket.Conn, roomID, userID string, messageType
 		if err != nil {
 			// Handle error (e.g., user disconnected)
 			log.Printf("Error broadcasting message to %s: %v", conn.RemoteAddr(), err)
+			continue  // Continue to ensure all clients receive messages regardless of errors
 		}
-		//}
 	}
 }
 
