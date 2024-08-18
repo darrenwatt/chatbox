@@ -9,7 +9,7 @@ function connectWebSocket() {
     ws.onopen = function(event) {
         console.log("WebSocket connection established.");
         const connectButton = document.getElementById("connectButton");
-        connectButton.innerText = "Disconnect"; // Change the text here
+        connectButton.innerText = "Disconnect";
         connectButton.onclick = disconnectFromChatRoom;
         sendButton.disabled = false;
         input.disabled = false;
@@ -27,7 +27,7 @@ function connectWebSocket() {
     ws.onclose = function(event) {
         console.log("WebSocket connection closed:", event);
         const connectButton = document.getElementById("connectButton");
-        connectButton.innerText = "Connect to Chat Room"; // Change the text here
+        connectButton.innerText = "Connect to Chat Room"; 
         connectButton.onclick = connectWebSocket;
         sendButton.disabled = true;
         input.disabled = true;
@@ -45,7 +45,7 @@ function displayMessage(message) {
     const chatMessages = document.getElementById("chatMessages");
     const messageElement = document.createElement("div");
     messageElement.textContent = message;
-    //chatMessages.appendChild(messageElement);
+
     if (chatMessages.firstChild) {
         chatMessages.insertBefore(messageElement, chatMessages.firstChild);
     } else {
@@ -61,16 +61,6 @@ function disconnectFromChatRoom() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-
-    // const toggleLink = document.querySelector('.toggle-link');
-    // const safetyText = document.querySelector('.safety-text');
-
-    // toggleLink.addEventListener('click', function (event) {
-    //     event.preventDefault(); // Prevent the default link behavior
-    //     safetyText.classList.toggle('open'); // Toggle the 'open' class
-    //     toggleLink.textContent = safetyText.classList.contains('open') ? 'Close' : 'Safety Reminder';
-    //   });
-   
 
     sendButton.addEventListener("click", sendMessage);
     input.addEventListener("keypress", function(event) {

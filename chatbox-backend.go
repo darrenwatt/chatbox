@@ -73,7 +73,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate a random ID for the user
-	userID := strconv.Itoa(rand.Intn(1000000)) // Change this to generate a unique ID as needed
+	userID := strconv.Itoa(rand.Intn(1000000)) 
 
 	// Close the connection when done
 	defer func(conn *websocket.Conn) {
@@ -149,8 +149,6 @@ func generateRoomID() string {
 	roomIDLock.Lock()
 	defer roomIDLock.Unlock()
 
-	// this line no longer required, rand.Seed is deprecated
-	// rand.Seed(time.Now().UnixNano())
 	id := strconv.Itoa(rand.Intn(1000000))
 	for {
 		_, exists := rooms[id]
