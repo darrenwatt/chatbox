@@ -1,8 +1,8 @@
 module chatbox
 
 go 1.22
-toolchain go1.23.7
+toolchain go1.24.1
 
 require github.com/gorilla/websocket v1.5.1
 
-require golang.org/x/net v0.36.0 // indirect
+require golang.org/x/net v0.38.0 // indirect
